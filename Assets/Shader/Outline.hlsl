@@ -11,6 +11,9 @@ SAMPLER(sampler_CameraDepthTexture);
 TEXTURE2D(_DiscontinuityTexture);
 SAMPLER(sampler_DiscontinuityTexture);
 
+TEXTURE2D(_TransparencyDepthTexture);
+SAMPLER(sampler_TransparencyDepthTexture);
+
 #ifndef SHADERGRAPH_PREVIEW
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
 #endif
@@ -53,7 +56,7 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     }
 
     float4 discontinuitySamplesOrig = SAMPLE_TEXTURE2D(_DiscontinuityTexture, sampler_DiscontinuityTexture, UV);
-    float4 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, UV);
+    float4 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparencyDepthTexture, sampler_TransparencyDepthTexture, UV);
 
     // Custom Source
     const float discontinuityDifference0 = discontinuitySamples[1].r - discontinuitySamples[0].r;
@@ -93,7 +96,8 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     float edge = max(edgeTransparentDiscontinuity, edgeColor);
 
     // float4 original = SAMPLE_TEXTURE2D(_CameraColorTexture, sampler_CameraColorTexture, uvSamples[0]);
-    float4 original = transparentDiscontinuitySamplesOrig;
+    float4 original = transparentDiscontinuitySamplesOrig * 100;
 
-    Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
+    // Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
+    Out = original;
 }

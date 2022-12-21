@@ -72,11 +72,18 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
     {
         int kDepthBufferBits = 32;
         private RTHandle TransparentDiscontinuityAttachmentHandle { get; set; }
-        internal RenderTextureDescriptor Descriptor { get; private set; }
+        private RenderTextureDescriptor Descriptor { get; set; }
 
         private FilteringSettings _mFilteringSettings;
         private const string m_ProfilerTag = "Transparent Discontinuity Prepass";
         readonly ShaderTagId m_ShaderTagId = new("OutlineTransparent");
+        
+        
+        string depthTextureName = "_CameraDepthTexture";
+        
+        private int m_BufferId = Shader.PropertyToID("_BufferName");
+        private RTHandle m_BufferRT;
+
 
         public TransparentDiscontinuitySourcePass(RenderQueueRange renderQueueRange, LayerMask layerMask)
         {
@@ -89,6 +96,7 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
             baseDescriptor.colorFormat = RenderTextureFormat.ARGB32;
             baseDescriptor.depthBufferBits = kDepthBufferBits;
             Descriptor = baseDescriptor;
+            
         }
 
         // This method is called before executing the render pass.
@@ -98,11 +106,15 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
         // The render pipeline will ensure target setup and clearing happens in an performance manner.
         public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
         {
-            cmd.GetTemporaryRT(Shader.PropertyToID(TransparentDiscontinuityAttachmentHandle.name), Descriptor, FilterMode.Point);
+            cmd.GetTemporaryRT(Shader.PropertyToID(TransparentDiscontinuityAttachmentHandle.name), Descriptor, FilterMode.Bilinear);
             ConfigureTarget(TransparentDiscontinuityAttachmentHandle);
             ConfigureClear(ClearFlag.All, Color.black);
-            // ConfigureInput(ScriptableRenderPassInput.Normal);
+            
+            cmd.GetTemporaryRT(m_BufferId, cameraTextureDescriptor, FilterMode.Bilinear);
+            m_BufferRT = RTHandles.Alloc(m_BufferId);
+
         }
+
 
         // Here you can implement the rendering logic.
         // Use <c>ScriptableRenderContext</c> to issue drawing commands or execute command buffers
@@ -122,12 +134,23 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
                 drawSettings.perObjectData = PerObjectData.None;
                 
                 context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref _mFilteringSettings);
-
                 cmd.SetGlobalTexture("_TransparentDiscontinuityTexture", TransparentDiscontinuityAttachmentHandle);
+                
+                var sourceTextureHandle = RTHandles.Alloc(Shader.GetGlobalTexture(depthTextureName), name: depthTextureName);
+                Blit(cmd, sourceTextureHandle, m_BufferRT); 
+                cmd.SetGlobalTexture("_TransparentDepthTexture", m_BufferRT, RenderTextureSubElement.Depth);
+                
             }
 
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
+        }
+        
+        public override void OnCameraCleanup(CommandBuffer cmd)
+        {
+            base.OnCameraCleanup(cmd);
+            cmd.ReleaseTemporaryRT(Shader.PropertyToID(TransparentDiscontinuityAttachmentHandle.name));
+            cmd.ReleaseTemporaryRT(m_BufferId);
         }
         
     }
@@ -160,6 +183,7 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+
         _discontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _discontinuitySourceTexture);
         _transparentDiscontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _transparentDiscontinuitySourceTexture);
         renderer.EnqueuePass(_discontinuitySourcePass);

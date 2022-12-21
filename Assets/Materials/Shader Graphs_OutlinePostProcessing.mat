@@ -42,7 +42,7 @@ Material:
     - _DepthSensitivity: 0.09
     - _DiscontinuitySensitivity: 0.1
     - _NormalsSensitivity: 1.2
-    - _Outline_Thickness: 11.92
+    - _Outline_Thickness: 1
     - _QueueControl: 0
     - _QueueOffset: 0
     - _TransparentDiscontinuitySensitivy: 4.2
