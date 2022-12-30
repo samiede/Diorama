@@ -46,17 +46,17 @@ Shader "Unlit/OutlineTransparent" {
 		
 		Pass  // Executes this first
         {
-            Tags { "LightMode" = "OutlineTransparent" }
+        	Name "OutlineTransparent" 
+			Tags { "LightMode" = "OutlineTransparent" }
  
 //            Cull Off
-//            ZWrite Off
+            ZWrite On
 //            ZTest Equal
  
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
-            // #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareNormalsTexture.hlsl"
             
             sampler2D _NoiseTexture;
             
@@ -76,15 +76,18 @@ Shader "Unlit/OutlineTransparent" {
                 float4 vertex : SV_POSITION;
             	float2 uv : TEXCOORD0;
             	float3 normal: TEXCOORD1;
+            	float depth: TEXCOORD2;
             };
             
  
             v2f vert(appdata v)
             {
                 v2f o;
+            	
                 o.vertex = UnityObjectToClipPos(v.vertex);
-				// o.normal = v.normal;
             	o.normal = UnityObjectToWorldNormal(v.normal);
+            	float zDepth = o.vertex.z / o.vertex.w;
+				o.depth = zDepth;
             	o.uv = TRANSFORM_TEX(v.uv, _NoiseTexture);
                 return o;
             }
@@ -92,7 +95,7 @@ Shader "Unlit/OutlineTransparent" {
             fixed4 frag(v2f i) : SV_Target
             {
             	fixed3 normals = i.normal * 0.5 + 0.5;
-                return float4(normals , 1);
+                return float4(normals, i.depth);
             }
  
             ENDCG
@@ -100,7 +103,7 @@ Shader "Unlit/OutlineTransparent" {
 
 		Pass {
 			Name "Unlit"
-			//Tags { "LightMode"="SRPDefaultUnlit" } // (is default anyway)
+			Tags { "LightMode"="SRPDefaultUnlit" } // (is default anyway)
 
 			Blend SrcAlpha OneMinusSrcAlpha
 
@@ -131,7 +134,7 @@ Shader "Unlit/OutlineTransparent" {
 			Varyings UnlitPassVertex(Attributes IN) {
 				Varyings OUT;
 
-				VertexPositionInputs positionInputs = GetVertexPositionInputs(IN.positionOS.xyz);
+				const VertexPositionInputs positionInputs = GetVertexPositionInputs(IN.positionOS.xyz);
 				OUT.positionCS = positionInputs.positionCS;
 				// Or :
 				//OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
@@ -194,6 +197,10 @@ Shader "Unlit/OutlineTransparent" {
 			*/
 			
 			ENDHLSL
+		}
+		Pass {
+	        ZWrite On
+	        ColorMask 0
 		}
 	}
 }

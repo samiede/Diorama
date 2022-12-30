@@ -31,6 +31,12 @@ public class EdgeDetectionRF : ScriptableRendererFeature
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
+            
+            if (renderingData.cameraData.cameraType != CameraType.Game)
+            {
+                return;
+            }
+            
             var cmd = CommandBufferPool.Get("_EdgeDetectionPass");
 
             // Do I need this?
