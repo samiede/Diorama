@@ -93,8 +93,8 @@ Shader "Unlit/OutlineTransparent" {
  
             fixed4 frag(v2f i) : SV_Target
             {
-            	fixed3 normals = (i.normal + 1) / 2;
-                return fixed4(i.normal, i.depth);
+            	fixed3 normals = i.normal * 0.5 + 0.5;
+                return float4(normals, i.depth);
             }
  
             ENDCG

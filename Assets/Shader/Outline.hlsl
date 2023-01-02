@@ -58,7 +58,7 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     }
 
     float4 discontinuitySamplesOrig = SAMPLE_TEXTURE2D(_DiscontinuityTexture, sampler_DiscontinuityTexture, UV);
-    float4 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, UV);
+    float3 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, UV).rgb * 2 - 1;
     float3 normalSamplesOrig = SampleSceneNormals(UV);
     
     
@@ -107,7 +107,10 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
 
     float4 original = SAMPLE_TEXTURE2D(_CameraColorTexture, sampler_CameraColorTexture, uvSamples[0]);
 
-    Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
-    Out = edgeTransparentDiscontinuity;
-    // Out = float4(float3(normalSamplesOrig), 1);
+    float eps = 0.01;
+    float same = dot(transparentDiscontinuitySamplesOrig, normalSamplesOrig) * 0.5 + 0.5;
+    
+    // Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
+    Out = float4(transparentDiscontinuitySamplesOrig, 1);
+    // Out = same;
 }

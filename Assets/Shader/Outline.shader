@@ -134,9 +134,9 @@ Shader "Unlit/Outline"
  
             fixed4 frag(v2f i) : SV_Target
             {
-				fixed4 noiseTex = tex2D(_NoiseTexture, i.uv);
+				// fixed4 noiseTex = tex2D(_NoiseTexture, i.uv);
             	
-                return float4(0, 0, 0, 1); 
+                return float4(0, 0, 0, 0); 
             }
  
             ENDCG
