@@ -136,7 +136,7 @@ Shader "Unlit/Outline"
             {
 				// fixed4 noiseTex = tex2D(_NoiseTexture, i.uv);
             	
-                return float4(0, 0, 0, 0); 
+                return float4(0, 0, 0, 1); 
             }
  
             ENDCG

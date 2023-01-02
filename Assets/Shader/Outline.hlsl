@@ -111,6 +111,6 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     float same = dot(transparentDiscontinuitySamplesOrig, normalSamplesOrig) * 0.5 + 0.5;
     
     // Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
-    Out = float4(transparentDiscontinuitySamplesOrig, 1);
+    Out = float4(abs(transparentDiscontinuitySamplesOrig), 1);
     // Out = same;
 }
