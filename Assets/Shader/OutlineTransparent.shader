@@ -85,17 +85,16 @@ Shader "Unlit/OutlineTransparent" {
                 v2f o;
             	
                 o.vertex = UnityObjectToClipPos(v.vertex);
+            	o.depth = (o.vertex.z / o.vertex.w);
             	o.normal = UnityObjectToWorldNormal(v.normal);
-            	float zDepth = o.vertex.z / o.vertex.w;
-				o.depth = zDepth;
             	o.uv = TRANSFORM_TEX(v.uv, _NoiseTexture);
                 return o;
             }
  
             fixed4 frag(v2f i) : SV_Target
             {
-            	fixed3 normals = i.normal * 0.5 + 0.5;
-                return float4(normals, i.depth);
+            	fixed3 normals = (i.normal + 1) / 2;
+                return fixed4(i.normal, i.depth);
             }
  
             ENDCG

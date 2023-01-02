@@ -140,7 +140,7 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
 
                 var sortFlags = renderingData.cameraData.defaultOpaqueSortFlags;
                 var drawSettings = CreateDrawingSettings(m_ShaderTagId, ref renderingData, sortFlags);
-                drawSettings.perObjectData = PerObjectData.None;
+                // drawSettings.perObjectData = PerObjectData.None;
                 
                 context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref _mFilteringSettings);
 

@@ -29,7 +29,7 @@ float3 DecodeNormal(float4 enc)
     return n;
 }
 
-void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, float transparentDiscSensitivity, float DepthSensitivity, float NormalsSensitivity, float ColorSensitivity, float4 OutlineColor, out float4 Out)
+void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, float transparentDiscSensitivity, float DepthSensitivity, float TransparentDepthSensivity, float NormalsSensitivity, float ColorSensitivity, float4 OutlineColor, out float4 Out)
 {
     float halfScaleFloor = floor(OutlineThickness * 0.5);
     float halfScaleCeil = ceil(OutlineThickness * 0.5);
@@ -39,7 +39,8 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     float depthSamples[4];
     float3 normalSamples[4], colorSamples[4];
     float4 discontinuitySamples[4];
-    float4 transparentDiscontinuitySamples[4];
+    float3 transparentDiscontinuitySamples[4];
+    float4 transparentDepthSamples[4];
 
     uvSamples[0] = UV - float2(Texel.x, Texel.y) * halfScaleFloor;
     uvSamples[1] = UV + float2(Texel.x, Texel.y) * halfScaleCeil;
@@ -49,15 +50,18 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     for(int i = 0; i < 4 ; i++)
     {
         discontinuitySamples[i] = SAMPLE_TEXTURE2D(_DiscontinuityTexture, sampler_DiscontinuityTexture, uvSamples[i]);
-        transparentDiscontinuitySamples[i] = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, uvSamples[i]);
+        transparentDiscontinuitySamples[i] = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, uvSamples[i]).rgb;
+        transparentDepthSamples[i] = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, uvSamples[i]).a;
         depthSamples[i] = SAMPLE_TEXTURE2D(_CameraDepthTexture, sampler_CameraDepthTexture, uvSamples[i]).r;
         normalSamples[i] = SampleSceneNormals(uvSamples[i]);
         colorSamples[i] = SAMPLE_TEXTURE2D(_CameraColorTexture, sampler_CameraColorTexture, uvSamples[i]);
     }
 
     float4 discontinuitySamplesOrig = SAMPLE_TEXTURE2D(_DiscontinuityTexture, sampler_DiscontinuityTexture, UV);
-    float4 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparentDepthSourceTexture, sampler_TransparentDepthSourceTexture, UV);
-
+    float4 transparentDiscontinuitySamplesOrig = SAMPLE_TEXTURE2D(_TransparentDiscontinuityTexture, sampler_TransparentDiscontinuityTexture, UV);
+    float3 normalSamplesOrig = SampleSceneNormals(UV);
+    
+    
     // Custom Source
     const float discontinuityDifference0 = discontinuitySamples[1].r - discontinuitySamples[0].r;
     const float discontinuityDifference1 = discontinuitySamples[3].r - discontinuitySamples[2].r;
@@ -71,6 +75,13 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
     const float transparentDiscontinuityDifference1 = transparentDiscontinuitySamples[3] - transparentDiscontinuitySamples[2];
     float edgeTransparentDiscontinuity = sqrt(dot(transparentDiscontinuityDifference0, transparentDiscontinuityDifference0) + dot(transparentDiscontinuityDifference1, transparentDiscontinuityDifference1));
     edgeTransparentDiscontinuity = edgeTransparentDiscontinuity > (1/transparentDiscSensitivity) ? 1 : 0;
+
+    // Transparent Depth
+    float tDepthFiniteDifference0 = transparentDepthSamples[1] - transparentDepthSamples[0];
+    float tDepthFiniteDifference1 = transparentDepthSamples[3] - transparentDepthSamples[2];
+    float tEdgeDepth = sqrt(pow(tDepthFiniteDifference0, 2) + pow(tDepthFiniteDifference1, 2)) * 100;
+    float tDepthThreshold = (1/TransparentDepthSensivity) * transparentDepthSamples[0];
+    tEdgeDepth = tEdgeDepth > tDepthThreshold ? 1 : 0;
     
 
     // Depth
@@ -92,12 +103,11 @@ void Outline_float(float2 UV, float OutlineThickness, float discSensitivity, flo
      float edgeColor = sqrt(dot(colorFiniteDifference0, colorFiniteDifference0) + dot(colorFiniteDifference1, colorFiniteDifference1));
      edgeColor = edgeColor > (1/ColorSensitivity) ? 1 : 0;
 
-    float edge = max(max(max(edgeDepth, max(edgeNormal, edgeColor)), edgeDiscontinuity), edgeTransparentDiscontinuity);
-    // float edge = max(edgeTransparentDiscontinuity, edgeColor);
+    float edge = max(max(max(max(edgeDepth, max(edgeNormal, edgeColor)), edgeDiscontinuity), edgeTransparentDiscontinuity), tEdgeDepth);
 
     float4 original = SAMPLE_TEXTURE2D(_CameraColorTexture, sampler_CameraColorTexture, uvSamples[0]);
-    // float4 original = transparentDiscontinuitySamplesOrig;
 
     Out = (1 - edge) * original + edge * saturate(lerp(original, OutlineColor,  OutlineColor.a));
-    // Out = original;
+    Out = edgeTransparentDiscontinuity;
+    // Out = float4(float3(normalSamplesOrig), 1);
 }
