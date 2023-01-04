@@ -1,4 +1,4 @@
-Shader "Unlit/Outline"
+Shader "Unlit/OutlineUnlit"
 {
     Properties
     {
@@ -21,8 +21,7 @@ Shader "Unlit/Outline"
 		_SpecGlossMap("Specular Map", 2D) = "white" {}
 		[Toggle(_GLOSSINESS_FROM_BASE_ALPHA)] _GlossSource ("Glossiness Source, from Albedo Alpha (if on) vs from Specular (if off)", Float) = 0
 		_Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5    
-    	[ToggleOff(_RECEIVE_SHADOWS_OFF)] _ReceiveShadows("Recieve Shadows", Float) = 1.0
-    }
+        }
     SubShader
     {
 		Tags {
@@ -440,7 +439,7 @@ Shader "Unlit/Outline"
 				InitializeInputData(IN, surfaceData.normalTS, inputData);
 
 				// Simple Lighting (Lambert & BlinnPhong)
-				half4 color = CustomUniversalFragmentBlinnPhong(inputData, surfaceData); // v12 only
+				half4 color = CustomUniversalAmbientOnly(inputData, surfaceData); // v12 only
 				// half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData.albedo, half4(surfaceData.specular, 1), surfaceData.smoothness, surfaceData.emission, surfaceData.alpha);
 				// See Lighting.hlsl to see how this is implemented.
 				// https://github.com/Unity-Technologies/Graphics/blob/master/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl

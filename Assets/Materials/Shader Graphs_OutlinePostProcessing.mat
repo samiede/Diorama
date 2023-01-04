@@ -38,15 +38,16 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ColorSensitivity: 0.17
-    - _DepthSensitivity: 0.09
-    - _DiscontinuitySensitivity: 0.1
+    - _ColorSensitivity: 0.02
+    - _DepthSensitivity: 0.27
+    - _DiscontinuitySensitivity: 0.04
     - _NormalsSensitivity: 1.2
     - _Outline_Thickness: 1
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _TransparentDepthSensivity: 0.09
+    - _TransparentDepthSensivity: 0.87
     - _TransparentDiscontinuitySensitivy: 1.2
+    - _TransparentNormalSensitivity: 1.6
     m_Colors:
     - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

@@ -49,7 +49,7 @@ Shader "Unlit/OutlineTransparent" {
         	Name "OutlineTransparent" 
 			Tags { "LightMode" = "OutlineTransparent" }
  
-//            Cull Off
+            Cull Back
             ZWrite On
 //            ZTest Equal
  
@@ -100,6 +100,62 @@ Shader "Unlit/OutlineTransparent" {
             ENDCG
         }
 
+		Pass  // Executes this first
+        {
+        	Name "BackOutlineTransparent" 
+			Tags { "LightMode" = "BackOutlineTransparent" }
+ 
+            Cull Front
+            ZWrite On
+//            ZTest Equal
+ 
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+            
+            sampler2D _NoiseTexture;
+            
+            float4 _NoiseTexture_ST;
+            
+            float _ObjectId;
+ 
+            struct appdata
+            {
+                float4 vertex : POSITION;
+            	float2 uv : TEXCOORD0;
+            	float3 normal: NORMAL;
+            };
+ 
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+            	float2 uv : TEXCOORD0;
+            	float3 normal: TEXCOORD1;
+            	float depth: TEXCOORD2;
+            };
+            
+ 
+            v2f vert(appdata v)
+            {
+                v2f o;
+            	
+                o.vertex = UnityObjectToClipPos(v.vertex);
+            	o.depth = (o.vertex.z / o.vertex.w);
+            	o.normal = UnityObjectToWorldNormal(v.normal);
+            	o.uv = TRANSFORM_TEX(v.uv, _NoiseTexture);
+                return o;
+            }
+ 
+            fixed4 frag(v2f i) : SV_Target
+            {
+            	fixed3 normals = i.normal * 0.5 + 0.5;
+                return float4(normals, i.depth);
+            }
+ 
+            ENDCG
+        }
+		
 		Pass {
 			Name "Unlit"
 			Tags { "LightMode"="SRPDefaultUnlit" } // (is default anyway)

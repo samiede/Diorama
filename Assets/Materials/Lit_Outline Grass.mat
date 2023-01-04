@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Unlit_OutlineTransparent
-  m_Shader: {fileID: 4800000, guid: 488240154672b4640bb4ee14b008cc83, type: 3}
+  m_Name: Lit_Outline Grass
+  m_Shader: {fileID: 4800000, guid: fb2732f331b4b47fd84c481a0115df54, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -53,7 +53,7 @@ Material:
     - _Smoothness: 0.5
     - _SpecGlossMapToggle: 0
     m_Colors:
-    - _BaseColor: {r: 0, g: 0.5709069, b: 0.6320754, a: 0.70980394}
+    - _BaseColor: {r: 0.39855975, g: 0.59607846, b: 0.007843143, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
   m_BuildTextureStacks: []

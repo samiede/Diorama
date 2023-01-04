@@ -32,7 +32,6 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
             cmd.GetTemporaryRT(Shader.PropertyToID(DiscontinuityAttachmentHandle.name), Descriptor, FilterMode.Point);
             ConfigureTarget(DiscontinuityAttachmentHandle);
             ConfigureClear(ClearFlag.All, Color.black);
-            // ConfigureInput(ScriptableRenderPassInput.Normal);
         }
         
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
@@ -69,48 +68,31 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
     {
         int kDepthBufferBits = 32;
         private RTHandle TransparentDiscontinuityAttachmentHandle { get; set; }
-        private RTHandle TransparentDepthAttachmentHandle { get; set; }
+        private RTHandle TransparentBackFaceDiscontinuityAttachmentHandle { get; set; }
         private RenderTextureDescriptor Descriptor { get; set; }
 
         private FilteringSettings _mFilteringSettings;
         private const string m_ProfilerTag = "Transparent Discontinuity Prepass";
-        readonly ShaderTagId m_ShaderTagId = new("OutlineTransparent");
+        readonly ShaderTagId m_FrontFaceShaderTagId = new("OutlineTransparent");
         
-        
-        // string depthTextureName = "_CameraDepthTexture";
-        
-        // private int m_BufferId = Shader.PropertyToID("_BufferName");
-        // private RTHandle m_BufferRT;
-
 
         public TransparentDiscontinuitySourcePass(RenderQueueRange renderQueueRange, LayerMask layerMask)
         {
             _mFilteringSettings = new FilteringSettings(renderQueueRange, layerMask);
         }
 
-        public void Setup(RenderTextureDescriptor baseDescriptor, RTHandle outlineAttachmentHandle, RTHandle customDepthAttachmentHandle)
+        public void Setup(RenderTextureDescriptor baseDescriptor, RTHandle outlineAttachmentHandle)
         {
             TransparentDiscontinuityAttachmentHandle = outlineAttachmentHandle;
-            TransparentDepthAttachmentHandle = customDepthAttachmentHandle;
             baseDescriptor.colorFormat = RenderTextureFormat.ARGBFloat;
             baseDescriptor.depthBufferBits = kDepthBufferBits;
             Descriptor = baseDescriptor;
             
         }
-
-        // This method is called before executing the render pass.
-        // It can be used to configure render targets and their clear state. Also to create temporary render target textures.
-        // When empty this render pass will render to the active camera render target.
-        // You should never call CommandBuffer.SetRenderTarget. Instead call <c>ConfigureTarget</c> and <c>ConfigureClear</c>.
-        // The render pipeline will ensure target setup and clearing happens in an performance manner.
+        
         public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
         {
-            
-            
             cmd.GetTemporaryRT(Shader.PropertyToID(TransparentDiscontinuityAttachmentHandle.name), Descriptor, FilterMode.Bilinear);
-            cmd.GetTemporaryRT(Shader.PropertyToID(TransparentDepthAttachmentHandle.name), Descriptor, FilterMode.Bilinear);
-            
-            // ConfigureTarget(TransparentDiscontinuityAttachmentHandle, TransparentDepthAttachmentHandle);
             ConfigureTarget(TransparentDiscontinuityAttachmentHandle);
             ConfigureClear(ClearFlag.All, Color.black);
             ConfigureInput(ScriptableRenderPassInput.Depth);
@@ -118,11 +100,7 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
 
         }
 
-
-        // Here you can implement the rendering logic.
-        // Use <c>ScriptableRenderContext</c> to issue drawing commands or execute command buffers
-        // https://docs.unity3d.com/ScriptReference/Rendering.ScriptableRenderContext.html
-        // You don't have to call ScriptableRenderContext.submit, the render pipeline will call it at specific points in the pipeline.
+        
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             
@@ -138,15 +116,12 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
                 context.ExecuteCommandBuffer(cmd);
                 cmd.Clear();
 
+                // Front Faces
                 var sortFlags = renderingData.cameraData.defaultOpaqueSortFlags;
-                var drawSettings = CreateDrawingSettings(m_ShaderTagId, ref renderingData, sortFlags);
-                // drawSettings.perObjectData = PerObjectData.None;
-                
+                var drawSettings = CreateDrawingSettings(m_FrontFaceShaderTagId, ref renderingData, sortFlags);
                 context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref _mFilteringSettings);
-
+                
                 cmd.SetGlobalTexture("_TransparentDiscontinuityTexture", TransparentDiscontinuityAttachmentHandle);
-                cmd.SetGlobalTexture("_TransparentDepthSourceTexture", TransparentDepthAttachmentHandle);
-
                 
             }
 
@@ -158,17 +133,87 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
         {
             base.OnCameraCleanup(cmd);
             cmd.ReleaseTemporaryRT(Shader.PropertyToID(TransparentDiscontinuityAttachmentHandle.name));
-            cmd.ReleaseTemporaryRT(Shader.PropertyToID(TransparentDepthAttachmentHandle.name));
+        }
+        
+    }
+    
+    class TransparentBackDiscontinuitySourcePass : ScriptableRenderPass
+    {
+        int kDepthBufferBits = 32;
+        private RTHandle TransparentBackFaceDiscontinuityAttachmentHandle { get; set; }
+        private RenderTextureDescriptor Descriptor { get; set; }
+
+        private FilteringSettings _mFilteringSettings;
+        private const string m_ProfilerTag = "Transparent Backface Discontinuity Prepass";
+        readonly ShaderTagId m_BackFaceShaderTagId = new("BackOutlineTransparent");
+        
+
+        public TransparentBackDiscontinuitySourcePass(RenderQueueRange renderQueueRange, LayerMask layerMask)
+        {
+            _mFilteringSettings = new FilteringSettings(renderQueueRange, layerMask);
+        }
+
+        public void Setup(RenderTextureDescriptor baseDescriptor, RTHandle outlineAttachmentHandle)
+        {
+            TransparentBackFaceDiscontinuityAttachmentHandle = outlineAttachmentHandle;
+            baseDescriptor.colorFormat = RenderTextureFormat.ARGBFloat;
+            baseDescriptor.depthBufferBits = kDepthBufferBits;
+            Descriptor = baseDescriptor;
+            
+        }
+        
+        public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
+        {
+            cmd.GetTemporaryRT(Shader.PropertyToID(TransparentBackFaceDiscontinuityAttachmentHandle.name), Descriptor, FilterMode.Bilinear);
+            ConfigureTarget(TransparentBackFaceDiscontinuityAttachmentHandle);
+            ConfigureClear(ClearFlag.All, Color.black);
+            ConfigureInput(ScriptableRenderPassInput.Depth);
+            
+
+        }
+
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+        {
+            
+            if (renderingData.cameraData.cameraType != CameraType.Game)
+            {
+                return;
+            }
+            
+            CommandBuffer cmd = CommandBufferPool.Get(m_ProfilerTag);
+            
+            using (new ProfilingScope(cmd, new ProfilingSampler(m_ProfilerTag)))
+            {
+                context.ExecuteCommandBuffer(cmd);
+                cmd.Clear();
+
+                // Back Faces
+                var sortFlags = renderingData.cameraData.defaultOpaqueSortFlags;
+                var drawSettings = CreateDrawingSettings(m_BackFaceShaderTagId, ref renderingData, sortFlags);
+                context.DrawRenderers(renderingData.cullResults, ref drawSettings, ref _mFilteringSettings);
+                
+                cmd.SetGlobalTexture("_TransparentBackfaceDiscontinuityTexture", TransparentBackFaceDiscontinuityAttachmentHandle);
+                
+            }
+
+            context.ExecuteCommandBuffer(cmd);
+            CommandBufferPool.Release(cmd);
+        }
+        
+        public override void OnCameraCleanup(CommandBuffer cmd)
+        {
+            base.OnCameraCleanup(cmd);
+            cmd.ReleaseTemporaryRT(Shader.PropertyToID(TransparentBackFaceDiscontinuityAttachmentHandle.name));
         }
         
     }
 
-
     private DiscontinuitySourcePass _discontinuitySourcePass;
     private TransparentDiscontinuitySourcePass _transparentDiscontinuitySourcePass;
+    private TransparentBackDiscontinuitySourcePass _transparentBackfaceDiscontinuitySourcePass;
     private RTHandle _discontinuitySourceTexture;
     private RTHandle _transparentDiscontinuitySourceTexture;
-    private RTHandle _transparentDepthSourceTexture;
+    private RTHandle _transparentBackfaceDiscontinuityTexture;
     public RenderPassEvent renderPassEvent;
     public RenderPassEvent transparentRenderPassEvent;
 
@@ -180,13 +225,21 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
         };
         _discontinuitySourceTexture = RTHandles.Alloc("_DiscontinuityTexture", name: "_DiscontinuityTexture");
         
+        
         _transparentDiscontinuitySourcePass = new TransparentDiscontinuitySourcePass(RenderQueueRange.all, -1)
         {
             renderPassEvent = transparentRenderPassEvent
         };
         
         _transparentDiscontinuitySourceTexture = RTHandles.Alloc("_TransparentDiscontinuityTexture", name: "_TransparentDiscontinuityTexture");
-        _transparentDepthSourceTexture = RTHandles.Alloc("_TransparentDepthSourceTexture", name: "_TransparentDepthSourceTexture");
+        
+        
+        _transparentBackfaceDiscontinuitySourcePass = new TransparentBackDiscontinuitySourcePass(RenderQueueRange.all, -1)
+        {
+            renderPassEvent = transparentRenderPassEvent
+        };
+        
+        _transparentBackfaceDiscontinuityTexture = RTHandles.Alloc("_TransparentBackfaceDiscontinuityTexture", name: "_TransparentBackfaceDiscontinuityTexture");
     }
 
     // Here you can inject one or multiple render passes in the renderer.
@@ -196,8 +249,10 @@ public class DiscontinuitySourceRF : ScriptableRendererFeature
 
         _discontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _discontinuitySourceTexture);
         renderer.EnqueuePass(_discontinuitySourcePass);
-        _transparentDiscontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _transparentDiscontinuitySourceTexture, _transparentDepthSourceTexture);
+        _transparentDiscontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _transparentDiscontinuitySourceTexture);
         renderer.EnqueuePass(_transparentDiscontinuitySourcePass);
+        _transparentBackfaceDiscontinuitySourcePass.Setup(renderingData.cameraData.cameraTargetDescriptor, _transparentBackfaceDiscontinuityTexture);
+        renderer.EnqueuePass(_transparentBackfaceDiscontinuitySourcePass);
     }
 }
 

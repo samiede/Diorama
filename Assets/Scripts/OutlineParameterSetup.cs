@@ -16,7 +16,7 @@ public class OutlineParameterSetup : MonoBehaviour
 
     void Start()
     {
-        var rng = new System.Random(transform.position.GetHashCode());
+        var rng = new System.Random(transform.position.GetHashCode() + 1);
         var rand = rng.Next();
         var scaled = (float) rand/int.MaxValue;
         _meshRenderer.material.SetFloat(_variableId, scaled);
