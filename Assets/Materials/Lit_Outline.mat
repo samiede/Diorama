@@ -49,6 +49,7 @@ Material:
     - _Cutoff: 0.5
     - _Emission: 0
     - _GlossSource: 0
+    - _LightingThreshold: 0.01
     - _NormalMapToggle: 0
     - _ReceiveShadows: 1
     - _Smoothness: 0.5

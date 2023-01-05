@@ -21,19 +21,25 @@
 ///////////////////////////////////////////////////////////////////////////////
 //                      Lighting Functions                                   //
 ///////////////////////////////////////////////////////////////////////////////
-half3 LightingLambert(half3 lightColor, half3 lightDir, half3 normal)
+half3 CustomLightingLambert(half3 lightColor, half3 lightDir, half3 normal, float lightingThreshold)
 {
     half NdotL = saturate(dot(normal, lightDir));
-    float lightIntensity = NdotL > 0 ? 1 : 0;
+    float lightIntensity = step(lightingThreshold, NdotL);
 
     return lightColor * lightIntensity;
 }
+
+half3 LightingLambert(half3 lightColor, half3 lightDir, half3 normal)
+{
+    half NdotL = saturate(dot(normal, lightDir));
+    return lightColor * NdotL;
+}
+
 
 half3 LightingSpecular(half3 lightColor, half3 lightDir, half3 normal, half3 viewDir, half4 specular, half smoothness)
 {
     float3 halfVec = SafeNormalize(float3(lightDir) + float3(viewDir));
     half NdotH = half(saturate(dot(normal, halfVec)));
-    
     half modifier = pow(NdotH, smoothness);
     half3 specularReflection = specular.rgb * modifier;
     return lightColor * specularReflection;
@@ -220,10 +226,10 @@ LightingData CreateLightingData(InputData inputData, SurfaceData surfaceData)
     return lightingData;
 }
 
-half3 CalculateBlinnPhong(Light light, InputData inputData, SurfaceData surfaceData)
+half3 CustomCalculateBlinnPhong(Light light, InputData inputData, SurfaceData surfaceData, float lightingThreshold)
 {
     half3 attenuatedLightColor = light.color * (light.distanceAttenuation * light.shadowAttenuation);
-    half3 lightDiffuseColor = LightingLambert(attenuatedLightColor, light.direction, inputData.normalWS);
+    half3 lightDiffuseColor = CustomLightingLambert(attenuatedLightColor, light.direction, inputData.normalWS, lightingThreshold);
 
     half3 lightSpecularColor = half3(0,0,0);
     #if defined(_SPECGLOSSMAP) || defined(_SPECULAR_COLOR)
@@ -237,6 +243,25 @@ half3 CalculateBlinnPhong(Light light, InputData inputData, SurfaceData surfaceD
 #else
     return lightDiffuseColor * surfaceData.albedo + lightSpecularColor;
 #endif
+}
+
+half3 CalculateBlinnPhong(Light light, InputData inputData, SurfaceData surfaceData)
+{
+    half3 attenuatedLightColor = light.color * (light.distanceAttenuation * light.shadowAttenuation);
+    half3 lightDiffuseColor = LightingLambert(attenuatedLightColor, light.direction, inputData.normalWS);
+
+    half3 lightSpecularColor = half3(0,0,0);
+    #if defined(_SPECGLOSSMAP) || defined(_SPECULAR_COLOR)
+    half smoothness = exp2(10 * surfaceData.smoothness + 1);
+
+    lightSpecularColor += LightingSpecular(attenuatedLightColor, light.direction, inputData.normalWS, inputData.viewDirectionWS, half4(surfaceData.specular, 1), smoothness);
+    #endif
+
+    #if _ALPHAPREMULTIPLY_ON
+    return lightDiffuseColor * surfaceData.albedo * surfaceData.alpha + lightSpecularColor;
+    #else
+    return lightDiffuseColor * surfaceData.albedo + lightSpecularColor;
+    #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -352,7 +377,63 @@ half4 UniversalFragmentPBR(InputData inputData, half3 albedo, half metallic, hal
 ////////////////////////////////////////////////////////////////////////////////
 /// Phong lighting...
 ////////////////////////////////////////////////////////////////////////////////
-half4 CustomUniversalFragmentBlinnPhong(InputData inputData, SurfaceData surfaceData)
+half4 CustomUniversalFragmentBlinnPhong(InputData inputData, SurfaceData surfaceData, float lightingThreshold)
+{
+    #if defined(DEBUG_DISPLAY)
+    half4 debugColor;
+
+    if (CanDebugOverrideOutputColor(inputData, surfaceData, debugColor))
+    {
+        return debugColor;
+    }
+    #endif
+
+    uint meshRenderingLayers = GetMeshRenderingLightLayer();
+    half4 shadowMask = CalculateShadowMask(inputData);
+    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+    Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
+    
+    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, aoFactor);
+
+    inputData.bakedGI *= surfaceData.albedo;
+
+    LightingData lightingData = CreateLightingData(inputData, surfaceData);
+    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+    {
+        lightingData.mainLightColor += CustomCalculateBlinnPhong(mainLight, inputData, surfaceData, lightingThreshold);
+    }
+
+    #if defined(_ADDITIONAL_LIGHTS)
+    uint pixelLightCount = GetAdditionalLightsCount();
+
+    #if USE_CLUSTERED_LIGHTING
+    for (uint lightIndex = 0; lightIndex < min(_AdditionalLightsDirectionalCount, MAX_VISIBLE_LIGHTS); lightIndex++)
+    {
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+        {
+            lightingData.additionalLightsColor += CustomCalculateBlinnPhong(light, inputData, surfaceData, lightingThreshold);
+        }
+    }
+    #endif
+
+    LIGHT_LOOP_BEGIN(pixelLightCount)
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+        {
+            lightingData.additionalLightsColor += CustomCalculateBlinnPhong(light, inputData, surfaceData, lightingThreshold);
+        }
+    LIGHT_LOOP_END
+    #endif
+
+    #if defined(_ADDITIONAL_LIGHTS_VERTEX)
+    lightingData.vertexLightingColor += inputData.vertexLighting * surfaceData.albedo;
+    #endif
+
+    return CalculateFinalColor(lightingData, surfaceData.alpha);
+}
+
+half4 UniversalFragmentBlinnPhong(InputData inputData, SurfaceData surfaceData)
 {
     #if defined(DEBUG_DISPLAY)
     half4 debugColor;
@@ -408,9 +489,6 @@ half4 CustomUniversalFragmentBlinnPhong(InputData inputData, SurfaceData surface
     return CalculateFinalColor(lightingData, surfaceData.alpha);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// Phong lighting...
-////////////////////////////////////////////////////////////////////////////////
 half4 CustomUniversalAmbientOnly(InputData inputData, SurfaceData surfaceData)
 {
 
@@ -436,7 +514,7 @@ half4 CustomUniversalAmbientOnly(InputData inputData, SurfaceData surfaceData)
     if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
     {
 
-        half3 attenuatedLightColor = mainLight.color * (mainLight.distanceAttenuation);
+        half3 attenuatedLightColor = mainLight.color * mainLight.distanceAttenuation;
         
         half3 lightDiffuseColor = attenuatedLightColor;
 
@@ -501,7 +579,7 @@ half4 CustomUniversalFragmentBlinnPhong(InputData inputData, half3 diffuse, half
     surfaceData.clearCoatSmoothness = 1;
     surfaceData.normalTS = normalTS;
 
-    return CustomUniversalFragmentBlinnPhong(inputData, surfaceData);
+    return CustomUniversalFragmentBlinnPhong(inputData, surfaceData, 0.1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

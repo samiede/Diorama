@@ -5,6 +5,7 @@ Shader "Unlit/Outline"
 		[MainTexture] _BaseMap("Base Map (RGB) Smoothness / Alpha (A)", 2D) = "white" {}
 		[NoiseTexture] _NoiseTexture("Noise Texture", 2D) = "black" {}
 		[MainColor]   _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+    	_LightingThreshold("Lighting Threshold", Float) = 0.1
 
 		[Toggle(_NORMALMAP)] _NormalMapToggle ("Normal Mapping", Float) = 0
 		[NoScaleOffset] _BumpMap("Normal Map", 2D) = "bump" {}
@@ -43,6 +44,7 @@ Shader "Unlit/Outline"
 		float4 _SpecColor;
 		float _Cutoff;
 		float _Smoothness;
+		float _LightingThreshold;
 		CBUFFER_END
 		ENDHLSL
 
@@ -440,7 +442,8 @@ Shader "Unlit/Outline"
 				InitializeInputData(IN, surfaceData.normalTS, inputData);
 
 				// Simple Lighting (Lambert & BlinnPhong)
-				half4 color = CustomUniversalFragmentBlinnPhong(inputData, surfaceData); // v12 only
+				// half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData); // v12 only
+				half4 color = CustomUniversalFragmentBlinnPhong(inputData, surfaceData, _LightingThreshold); // v12 only
 				// half4 color = UniversalFragmentBlinnPhong(inputData, surfaceData.albedo, half4(surfaceData.specular, 1), surfaceData.smoothness, surfaceData.emission, surfaceData.alpha);
 				// See Lighting.hlsl to see how this is implemented.
 				// https://github.com/Unity-Technologies/Graphics/blob/master/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl

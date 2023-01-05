@@ -39,7 +39,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _ColorSensitivity: 0.02
-    - _DepthSensitivity: 0.27
+    - _DepthSensitivity: 4.99
     - _DiscontinuitySensitivity: 0.04
     - _NormalsSensitivity: 1.2
     - _Outline_Thickness: 1
